@@ -1,2 +1,0 @@
-# Kindroot-consulting
-KindRoot Consulting
