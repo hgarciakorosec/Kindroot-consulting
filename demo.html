@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>In-App Experience Screens</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#121826; --text:#e8eef7; --muted:#a9b4c3; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text); }
+    .wrap { max-width:1100px; margin:0 auto; padding:16px; }
+    .top { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+    .title { font-size:18px; font-weight:700; }
+    .hint { font-size:13px; color:var(--muted); }
+    .main { margin-top:12px; display:grid; grid-template-columns: 1fr; gap:12px; }
+    @media (min-width: 900px) { .main { grid-template-columns: 1.2fr 0.8fr; } }
+
+    .viewer { background:var(--panel); border-radius:14px; padding:12px; }
+    .imgbox { position:relative; display:flex; justify-content:center; align-items:center; background:#0a0d12; border-radius:12px; overflow:hidden; min-height: 320px; }
+    img { max-width:100%; height:auto; display:block; }
+
+    .controls { display:flex; gap:10px; justify-content:space-between; align-items:center; margin-top:10px; flex-wrap:wrap; }
+    .btns { display:flex; gap:8px; flex-wrap:wrap; }
+    button {
+      appearance:none; border:0; border-radius:10px; padding:10px 12px;
+      background:#2a3a56; color:var(--text); font-weight:600; cursor:pointer;
+    }
+    button:hover { filter:brightness(1.05); }
+    button:active { transform: translateY(1px); }
+    .counter { color:var(--muted); font-size:13px; }
+
+    .side { background:var(--panel); border-radius:14px; padding:12px; }
+    .note { background:#0a0d12; border-radius:12px; padding:10px; color:var(--muted); font-size:13px; line-height:1.4; }
+    .qrwrap { margin-top:10px; display:grid; gap:10px; grid-template-columns: 1fr; }
+    @media (min-width: 900px) { .qrwrap { grid-template-columns: 1fr 1fr; } }
+
+    .card { background:#0a0d12; border-radius:12px; padding:10px; }
+    .card h3 { margin:0 0 6px 0; font-size:14px; }
+    .small { font-size:12px; color:var(--muted); margin:0 0 8px 0; }
+    .qrcode { display:flex; justify-content:center; padding:8px; background:white; border-radius:10px; }
+
+    .thumbs { margin-top:12px; display:grid; grid-template-columns: repeat(6, 1fr); gap:8px; }
+    @media (max-width: 700px) { .thumbs { grid-template-columns: repeat(4, 1fr); } }
+    .thumbs img {
+      width:100%; border-radius:10px; cursor:pointer; opacity:0.85;
+      outline:2px solid transparent;
+    }
+    .thumbs img.active { opacity:1; outline-color:#6ea8ff; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="title">In-App Experience Screens</div>
+        <div class="hint">Tip: use ← → keys on laptop, or swipe on phone.</div>
+      </div>
+      <div class="counter" id="counter">Slide 1 of 1</div>
+    </div>
+
+    <div class="main">
+      <div class="viewer">
+        <div class="imgbox">
+          <img id="slideImg" alt="App screenshot" loading="lazy" />
+        </div>
+
+        <div class="controls">
+          <div class="btns">
+            <button id="prevBtn" aria-label="Previous">◀ Prev</button>
+            <button id="nextBtn" aria-label="Next">Next ▶</button>
+          </div>
+          <div class="btns">
+            <button id="copyLinkBtn">Copy link to this slide</button>
+            <button id="fsBtn">Fullscreen</button>
+          </div>
+        </div>
+
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+
+      <div class="side">
+        <div class="note">
+          If you’re presenting live: put the slideshow QR on your first slide.
+          Teammates scan it and follow along on their phone while you talk.
+        </div>
+
+        <div class="qrwrap">
+          <div class="card">
+            <h3>QR: Open slideshow</h3>
+            <p class="small">Links to the main page.</p>
+            <div class="qrcode" id="qrDeck"></div>
+          </div>
+          <div class="card">
+            <h3>QR: Current slide</h3>
+            <p class="small">Updates as you click next/prev.</p>
+            <div class="qrcode" id="qrSlide"></div>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:12px;">
+          Update the <code>slides</code> list in the script to add/remove screenshots.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR generator (client-side) -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <script>
+    // Put your FULL image URLs here in order
+    const slides = [
+      {
+        src: "https://bhlg-us.nyc3.cdn.digitaloceanspaces.com/assets/posts/my-current-home-screen.png",
+        title: "Home Screen"
+      }
+      // Add more slides like:
+      // { src: "https://.../another.png", title: "Something" }
+    ];
+
+    const img = document.getElementById("slideImg");
+    const counter = document.getElementById("counter");
+    const thumbs = document.getElementById("thumbs");
+
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const copyLinkBtn = document.getElementById("copyLinkBtn");
+    const fsBtn = document.getElementById("fsBtn");
+
+    // Base URL for QR + deep links
+    const baseUrl = window.location.href.split("#")[0];
+    const deckUrl = baseUrl;
+
+    // Create deck QR (static)
+    new QRCode(document.getElementById("qrDeck"), { text: deckUrl, width: 170, height: 170 });
+
+    function clamp(i) {
+      if (!slides.length) return 0;
+      if (i < 0) return slides.length - 1;
+      if (i >= slides.length) return 0;
+      return i;
+    }
+
+    function getIndexFromHash() {
+      const m = window.location.hash.match(/#slide=(\d+)/);
+      if (!m) return 0;
+      const idx = parseInt(m[1], 10) - 1;
+      return isNaN(idx) ? 0 : Math.min(Math.max(idx, 0), slides.length - 1);
+    }
+
+    let current = getIndexFromHash();
+
+    function renderThumbs() {
+      thumbs.innerHTML = "";
+      slides.forEach((s, i) => {
+        const t = document.createElement("img");
+        t.src = s.src;
+        t.alt = s.title || ("Slide " + (i + 1));
+        t.loading = "lazy";
+        t.referrerPolicy = "no-referrer"; // avoids some CDN referrer restrictions
+        t.className = (i === current) ? "active" : "";
+        t.addEventListener("click", () => goTo(i));
+        thumbs.appendChild(t);
+      });
+    }
+
+    function updateSlideQR() {
+      const slideLink = baseUrl + "#slide=" + (current + 1);
+      const holder = document.getElementById("qrSlide");
+      holder.innerHTML = "";
+      new QRCode(holder, { text: slideLink, width: 170, height: 170 });
+    }
+
+    function goTo(i) {
+      if (!slides.length) return;
+
+      current = clamp(i);
+      const s = slides[current];
+
+      img.src = s.src;
+      img.alt = s.title || "App screenshot";
+      img.referrerPolicy = "no-referrer"; // avoids some CDN referrer restrictions
+
+      document.title = (s.title ? s.title + " — " : "") + "In-App Experience Screens";
+      counter.textContent = `Slide ${current + 1} of ${slides.length}`;
+
+      // update hash without jumping
+      history.replaceState(null, "", "#slide=" + (current + 1));
+
+      renderThumbs();
+      updateSlideQR();
+    }
+
+    prevBtn.addEventListener("click", () => goTo(current - 1));
+    nextBtn.addEventListener("click", () => goTo(current + 1));
+
+    copyLinkBtn.addEventListener("click", async () => {
+      const link = baseUrl + "#slide=" + (current + 1);
+      try {
+        await navigator.clipboard.writeText(link);
+        copyLinkBtn.textContent = "Copied!";
+        setTimeout(() => copyLinkBtn.textContent = "Copy link to this slide", 900);
+      } catch {
+        alert("Couldn’t copy automatically. Link:\n" + link);
+      }
+    });
+
+    fsBtn.addEventListener("click", () => {
+      const el = document.querySelector(".imgbox");
+      if (!document.fullscreenElement) el.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    });
+
+    // Keyboard nav
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") goTo(current - 1);
+      if (e.key === "ArrowRight") goTo(current + 1);
+    });
+
+    // Swipe nav (simple)
+    let startX = null;
+    img.addEventListener("touchstart", (e) => startX = e.touches[0].clientX, { passive:true });
+    img.addEventListener("touchend", (e) => {
+      if (startX === null) return;
+      const endX = e.changedTouches[0].clientX;
+      const dx = endX - startX;
+      if (Math.abs(dx) > 40) {
+        if (dx > 0) goTo(current - 1);
+        else goTo(current + 1);
+      }
+      startX = null;
+    }, { passive:true });
+
+    // Handle manual hash changes / deep links
+    window.addEventListener("hashchange", () => {
+      const idx = getIndexFromHash();
+      goTo(idx);
+    });
+
+    // Initial render
+    if (!slides.length) {
+      counter.textContent = "No slides configured";
+      document.getElementById("qrSlide").innerHTML = "";
+    } else {
+      goTo(current);
+    }
+  </script>
+</body>
+</html>
